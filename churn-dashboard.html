@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Análise de Churn — Intervalo de Envio de NFs | VR</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3347;
+      --accent: #6366f1;
+      --accent2: #22d3ee;
+      --accent3: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --pareto: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 20px 48px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header h1 span { color: var(--accent); }
+    .header p {
+      color: var(--muted);
+      margin-top: 8px;
+      font-size: 0.95rem;
+      max-width: 620px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-top: 10px;
+    }
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      max-width: 960px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .controls label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 10px;
+    }
+    .controls label strong { color: var(--text); font-size: 0.95rem; }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .slider-row input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 4px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    .slider-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(99,102,241,0.6);
+    }
+    .slider-val {
+      min-width: 44px;
+      text-align: right;
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      max-width: 960px;
+      margin: 0 auto 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 3px 3px 0 0;
+    }
+    .card.green::before { background: var(--green); }
+    .card.cyan::before { background: var(--accent2); }
+    .card.amber::before { background: var(--pareto); }
+    .card.red::before { background: var(--red); }
+    .card-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .card-value.accent { color: var(--accent); }
+    .card-value.green { color: var(--green); }
+    .card-value.cyan { color: var(--accent2); }
+    .card-value.amber { color: var(--pareto); }
+    .card-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 960px;
+      margin: 0 auto 24px;
+    }
+    .chart-title {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-title strong { color: var(--text); font-size: 1rem; }
+    .legend-row {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .leg-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .leg-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+    .pareto-note {
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 10px;
+      padding: 12px 16px;
+      max-width: 960px;
+      margin: 0 auto 0;
+      font-size: 0.83rem;
+      color: var(--muted);
+      line-height: 1.6;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .pareto-note .icon { font-size: 1.1rem; margin-top: 1px; }
+    .pareto-note strong { color: var(--pareto); }
+    canvas { max-height: 380px; }
+    @media (max-width: 600px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+      .header h1 { font-size: 1.35rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Distribuição de <span>Intervalo de Envio</span> de NFs</h1>
+  <p>Análise comportamental de churn no produto de escaneamento de notas fiscais da VR, baseada na mediana de dias entre envios consecutivos por usuário.</p>
+  <span class="badge">97.378 usuários analisados · Dados sintéticos para portfólio</span>
+</div>
+
+<div class="controls" style="max-width:960px">
+  <label>
+    Filtrar intervalo de dias (eixo X):<br/>
+    <span style="font-size:0.78rem;color:var(--muted)">Arraste para explorar a distribuição em diferentes janelas de tempo</span>
+  </label>
+  <div class="slider-row">
+    <span style="font-size:0.8rem;color:var(--muted)">0</span>
+    <input type="range" id="sliderMax" min="1" max="90" value="30" step="1" oninput="onSlider(this.value)"/>
+    <span class="slider-val" id="sliderDisplay">30 dias</span>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card cyan">
+    <div class="card-label">Dia Selecionado</div>
+    <div class="card-value cyan" id="cardDia">—</div>
+    <div class="card-sub">Ponto de referência no eixo X</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Usuários no Dia</div>
+    <div class="card-value accent" id="cardQtd">—</div>
+    <div class="card-sub">Mediana de intervalo = X dias</div>
+  </div>
+  <div class="card green">
+    <div class="card-label">Usuários Acumulados</div>
+    <div class="card-value green" id="cardAcum">—</div>
+    <div class="card-sub" id="cardAcumSub">até o dia selecionado</div>
+  </div>
+  <div class="card amber">
+    <div class="card-label">% Acumulado</div>
+    <div class="card-value amber" id="cardPct">—</div>
+    <div class="card-sub" id="cardPctSub">da base total</div>
+  </div>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-title"><strong>Curva de Distribuição Acumulada</strong> · Mediana de Dias entre Envios de NF</div>
+  <div class="legend-row">
+    <div class="leg-item"><div class="leg-dot" style="background:#6366f1"></div>% Acumulado de Usuários (linha)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:rgba(34,211,238,0.5)"></div>Qtd. Usuários no Dia (barras)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f59e0b;border-radius:50%"></div>Linha de Pareto (80%)</div>
+  </div>
+  <canvas id="chartMain"></canvas>
+</div>
+
+<div class="pareto-note">
+  <span class="icon">📐</span>
+  <span>
+    <strong>Princípio de Pareto aplicado:</strong> 80% dos usuários possuem mediana de intervalo de envio de <strong>até 15 dias</strong>.
+    O gráfico forma uma <strong>curva logarítmica</strong>: o incremento de usuários por dia adicional de intervalo decresce progressivamente,
+    revelando uma base concentrada em usuários de alta frequência.
+    <strong>40% dos usuários</strong> enviam notas fiscais com mediana de até 1 dia — ou seja, praticamente todos os dias.
+  </span>
+</div>
+
+<script>
+const RAW_DATA = [{"dia": 0, "qtd": 23253, "acumulado": 23253, "pct_acumulado": 23.88, "pct_diff": 0}, {"dia": 1, "qtd": 15382, "acumulado": 38635, "pct_acumulado": 39.68, "pct_diff": 15.8}, {"dia": 2, "qtd": 11164, "acumulado": 49799, "pct_acumulado": 51.14, "pct_diff": 11.46}, {"dia": 3, "qtd": 6823, "acumulado": 56622, "pct_acumulado": 58.15, "pct_diff": 7.01}, {"dia": 4, "qtd": 4858, "acumulado": 61480, "pct_acumulado": 63.14, "pct_diff": 4.99}, {"dia": 5, "qtd": 3346, "acumulado": 64826, "pct_acumulado": 66.57, "pct_diff": 3.43}, {"dia": 6, "qtd": 2810, "acumulado": 67636, "pct_acumulado": 69.46, "pct_diff": 2.89}, {"dia": 7, "qtd": 2508, "acumulado": 70144, "pct_acumulado": 72.03, "pct_diff": 2.57}, {"dia": 8, "qtd": 1676, "acumulado": 71820, "pct_acumulado": 73.75, "pct_diff": 1.72}, {"dia": 9, "qtd": 1109, "acumulado": 72929, "pct_acumulado": 74.89, "pct_diff": 1.14}, {"dia": 10, "qtd": 990, "acumulado": 73919, "pct_acumulado": 75.91, "pct_diff": 1.02}, {"dia": 11, "qtd": 853, "acumulado": 74772, "pct_acumulado": 76.79, "pct_diff": 0.88}, {"dia": 12, "qtd": 786, "acumulado": 75558, "pct_acumulado": 77.59, "pct_diff": 0.8}, {"dia": 13, "qtd": 713, "acumulado": 76271, "pct_acumulado": 78.32, "pct_diff": 0.73}, {"dia": 14, "qtd": 769, "acumulado": 77040, "pct_acumulado": 79.11, "pct_diff": 0.79}, {"dia": 15, "qtd": 559, "acumulado": 77599, "pct_acumulado": 79.69, "pct_diff": 0.58}, {"dia": 16, "qtd": 553, "acumulado": 78152, "pct_acumulado": 80.26, "pct_diff": 0.57}, {"dia": 17, "qtd": 505, "acumulado": 78657, "pct_acumulado": 80.77, "pct_diff": 0.51}, {"dia": 18, "qtd": 470, "acumulado": 79127, "pct_acumulado": 81.26, "pct_diff": 0.49}, {"dia": 19, "qtd": 443, "acumulado": 79570, "pct_acumulado": 81.71, "pct_diff": 0.45}, {"dia": 20, "qtd": 477, "acumulado": 80047, "pct_acumulado": 82.2, "pct_diff": 0.49}, {"dia": 21, "qtd": 520, "acumulado": 80567, "pct_acumulado": 82.74, "pct_diff": 0.54}, {"dia": 22, "qtd": 443, "acumulado": 81010, "pct_acumulado": 83.19, "pct_diff": 0.45}, {"dia": 23, "qtd": 402, "acumulado": 81412, "pct_acumulado": 83.6, "pct_diff": 0.41}, {"dia": 24, "qtd": 461, "acumulado": 81873, "pct_acumulado": 84.08, "pct_diff": 0.48}, {"dia": 25, "qtd": 480, "acumulado": 82353, "pct_acumulado": 84.57, "pct_diff": 0.49}, {"dia": 26, "qtd": 506, "acumulado": 82859, "pct_acumulado": 85.09, "pct_diff": 0.52}, {"dia": 27, "qtd": 601, "acumulado": 83460, "pct_acumulado": 85.71, "pct_diff": 0.62}, {"dia": 28, "qtd": 875, "acumulado": 84335, "pct_acumulado": 86.61, "pct_diff": 0.9}, {"dia": 29, "qtd": 709, "acumulado": 85044, "pct_acumulado": 87.33, "pct_diff": 0.72}, {"dia": 30, "qtd": 796, "acumulado": 85840, "pct_acumulado": 88.15, "pct_diff": 0.82}, {"dia": 31, "qtd": 705, "acumulado": 86545, "pct_acumulado": 88.88, "pct_diff": 0.73}, {"dia": 32, "qtd": 537, "acumulado": 87082, "pct_acumulado": 89.43, "pct_diff": 0.55}, {"dia": 33, "qtd": 438, "acumulado": 87520, "pct_acumulado": 89.88, "pct_diff": 0.45}, {"dia": 34, "qtd": 381, "acumulado": 87901, "pct_acumulado": 90.27, "pct_diff": 0.39}, {"dia": 35, "qtd": 382, "acumulado": 88283, "pct_acumulado": 90.66, "pct_diff": 0.39}, {"dia": 36, "qtd": 252, "acumulado": 88535, "pct_acumulado": 90.92, "pct_diff": 0.26}, {"dia": 37, "qtd": 196, "acumulado": 88731, "pct_acumulado": 91.12, "pct_diff": 0.2}, {"dia": 38, "qtd": 206, "acumulado": 88937, "pct_acumulado": 91.33, "pct_diff": 0.21}, {"dia": 39, "qtd": 181, "acumulado": 89118, "pct_acumulado": 91.52, "pct_diff": 0.19}, {"dia": 40, "qtd": 143, "acumulado": 89261, "pct_acumulado": 91.66, "pct_diff": 0.14}, {"dia": 41, "qtd": 155, "acumulado": 89416, "pct_acumulado": 91.82, "pct_diff": 0.16}, {"dia": 42, "qtd": 161, "acumulado": 89577, "pct_acumulado": 91.99, "pct_diff": 0.17}, {"dia": 43, "qtd": 171, "acumulado": 89748, "pct_acumulado": 92.16, "pct_diff": 0.17}, {"dia": 44, "qtd": 169, "acumulado": 89917, "pct_acumulado": 92.34, "pct_diff": 0.18}, {"dia": 45, "qtd": 164, "acumulado": 90081, "pct_acumulado": 92.51, "pct_diff": 0.17}, {"dia": 46, "qtd": 122, "acumulado": 90203, "pct_acumulado": 92.63, "pct_diff": 0.12}, {"dia": 47, "qtd": 92, "acumulado": 90295, "pct_acumulado": 92.73, "pct_diff": 0.1}, {"dia": 48, "qtd": 94, "acumulado": 90389, "pct_acumulado": 92.82, "pct_diff": 0.09}, {"dia": 49, "qtd": 105, "acumulado": 90494, "pct_acumulado": 92.93, "pct_diff": 0.11}, {"dia": 50, "qtd": 96, "acumulado": 90590, "pct_acumulado": 93.03, "pct_diff": 0.1}, {"dia": 51, "qtd": 91, "acumulado": 90681, "pct_acumulado": 93.12, "pct_diff": 0.09}, {"dia": 52, "qtd": 90, "acumulado": 90771, "pct_acumulado": 93.22, "pct_diff": 0.1}, {"dia": 53, "qtd": 95, "acumulado": 90866, "pct_acumulado": 93.31, "pct_diff": 0.09}, {"dia": 54, "qtd": 92, "acumulado": 90958, "pct_acumulado": 93.41, "pct_diff": 0.1}, {"dia": 55, "qtd": 115, "acumulado": 91073, "pct_acumulado": 93.53, "pct_diff": 0.12}, {"dia": 56, "qtd": 153, "acumulado": 91226, "pct_acumulado": 93.68, "pct_diff": 0.15}, {"dia": 57, "qtd": 128, "acumulado": 91354, "pct_acumulado": 93.81, "pct_diff": 0.13}, {"dia": 58, "qtd": 148, "acumulado": 91502, "pct_acumulado": 93.97, "pct_diff": 0.16}, {"dia": 59, "qtd": 150, "acumulado": 91652, "pct_acumulado": 94.12, "pct_diff": 0.15}, {"dia": 60, "qtd": 174, "acumulado": 91826, "pct_acumulado": 94.3, "pct_diff": 0.18}, {"dia": 61, "qtd": 197, "acumulado": 92023, "pct_acumulado": 94.5, "pct_diff": 0.2}, {"dia": 62, "qtd": 183, "acumulado": 92206, "pct_acumulado": 94.69, "pct_diff": 0.19}, {"dia": 63, "qtd": 169, "acumulado": 92375, "pct_acumulado": 94.86, "pct_diff": 0.17}, {"dia": 64, "qtd": 115, "acumulado": 92490, "pct_acumulado": 94.98, "pct_diff": 0.12}, {"dia": 65, "qtd": 88, "acumulado": 92578, "pct_acumulado": 95.07, "pct_diff": 0.09}, {"dia": 66, "qtd": 87, "acumulado": 92665, "pct_acumulado": 95.16, "pct_diff": 0.09}, {"dia": 67, "qtd": 79, "acumulado": 92744, "pct_acumulado": 95.24, "pct_diff": 0.08}, {"dia": 68, "qtd": 66, "acumulado": 92810, "pct_acumulado": 95.31, "pct_diff": 0.07}, {"dia": 69, "qtd": 69, "acumulado": 92879, "pct_acumulado": 95.38, "pct_diff": 0.07}, {"dia": 70, "qtd": 80, "acumulado": 92959, "pct_acumulado": 95.46, "pct_diff": 0.08}, {"dia": 71, "qtd": 66, "acumulado": 93025, "pct_acumulado": 95.53, "pct_diff": 0.07}, {"dia": 72, "qtd": 63, "acumulado": 93088, "pct_acumulado": 95.59, "pct_diff": 0.06}, {"dia": 73, "qtd": 55, "acumulado": 93143, "pct_acumulado": 95.65, "pct_diff": 0.06}, {"dia": 74, "qtd": 52, "acumulado": 93195, "pct_acumulado": 95.7, "pct_diff": 0.05}, {"dia": 75, "qtd": 36, "acumulado": 93231, "pct_acumulado": 95.74, "pct_diff": 0.04}, {"dia": 76, "qtd": 44, "acumulado": 93275, "pct_acumulado": 95.79, "pct_diff": 0.05}, {"dia": 77, "qtd": 46, "acumulado": 93321, "pct_acumulado": 95.83, "pct_diff": 0.04}, {"dia": 78, "qtd": 34, "acumulado": 93355, "pct_acumulado": 95.87, "pct_diff": 0.04}, {"dia": 79, "qtd": 37, "acumulado": 93392, "pct_acumulado": 95.91, "pct_diff": 0.04}, {"dia": 80, "qtd": 41, "acumulado": 93433, "pct_acumulado": 95.95, "pct_diff": 0.04}, {"dia": 81, "qtd": 34, "acumulado": 93467, "pct_acumulado": 95.98, "pct_diff": 0.03}, {"dia": 82, "qtd": 38, "acumulado": 93505, "pct_acumulado": 96.02, "pct_diff": 0.04}, {"dia": 83, "qtd": 41, "acumulado": 93546, "pct_acumulado": 96.06, "pct_diff": 0.04}, {"dia": 84, "qtd": 47, "acumulado": 93593, "pct_acumulado": 96.11, "pct_diff": 0.05}, {"dia": 85, "qtd": 43, "acumulado": 93636, "pct_acumulado": 96.16, "pct_diff": 0.05}, {"dia": 86, "qtd": 46, "acumulado": 93682, "pct_acumulado": 96.2, "pct_diff": 0.04}, {"dia": 87, "qtd": 55, "acumulado": 93737, "pct_acumulado": 96.26, "pct_diff": 0.06}, {"dia": 88, "qtd": 56, "acumulado": 93793, "pct_acumulado": 96.32, "pct_diff": 0.06}, {"dia": 89, "qtd": 65, "acumulado": 93858, "pct_acumulado": 96.39, "pct_diff": 0.07}, {"dia": 90, "qtd": 79, "acumulado": 93937, "pct_acumulado": 96.47, "pct_diff": 0.08}, {"dia": 91, "qtd": 101, "acumulado": 94038, "pct_acumulado": 96.57, "pct_diff": 0.1}, {"dia": 92, "qtd": 84, "acumulado": 94122, "pct_acumulado": 96.66, "pct_diff": 0.09}, {"dia": 93, "qtd": 62, "acumulado": 94184, "pct_acumulado": 96.72, "pct_diff": 0.06}, {"dia": 94, "qtd": 58, "acumulado": 94242, "pct_acumulado": 96.78, "pct_diff": 0.06}, {"dia": 95, "qtd": 46, "acumulado": 94288, "pct_acumulado": 96.83, "pct_diff": 0.05}, {"dia": 96, "qtd": 49, "acumulado": 94337, "pct_acumulado": 96.88, "pct_diff": 0.05}, {"dia": 97, "qtd": 41, "acumulado": 94378, "pct_acumulado": 96.92, "pct_diff": 0.04}, {"dia": 98, "qtd": 36, "acumulado": 94414, "pct_acumulado": 96.96, "pct_diff": 0.04}, {"dia": 99, "qtd": 41, "acumulado": 94455, "pct_acumulado": 97, "pct_diff": 0.04}, {"dia": 100, "qtd": 35, "acumulado": 94490, "pct_acumulado": 97.03, "pct_diff": 0.03}, {"dia": 101, "qtd": 37, "acumulado": 94527, "pct_acumulado": 97.07, "pct_diff": 0.04}, {"dia": 102, "qtd": 36, "acumulado": 94563, "pct_acumulado": 97.11, "pct_diff": 0.04}, {"dia": 103, "qtd": 14, "acumulado": 94577, "pct_acumulado": 97.12, "pct_diff": 0.01}, {"dia": 104, "qtd": 37, "acumulado": 94614, "pct_acumulado": 97.16, "pct_diff": 0.04}, {"dia": 105, "qtd": 43, "acumulado": 94657, "pct_acumulado": 97.21, "pct_diff": 0.05}, {"dia": 106, "qtd": 27, "acumulado": 94684, "pct_acumulado": 97.23, "pct_diff": 0.02}, {"dia": 107, "qtd": 18, "acumulado": 94702, "pct_acumulado": 97.25, "pct_diff": 0.02}, {"dia": 108, "qtd": 21, "acumulado": 94723, "pct_acumulado": 97.27, "pct_diff": 0.02}, {"dia": 109, "qtd": 22, "acumulado": 94745, "pct_acumulado": 97.3, "pct_diff": 0.03}, {"dia": 110, "qtd": 16, "acumulado": 94761, "pct_acumulado": 97.31, "pct_diff": 0.01}, {"dia": 111, "qtd": 22, "acumulado": 94783, "pct_acumulado": 97.34, "pct_diff": 0.03}, {"dia": 112, "qtd": 33, "acumulado": 94816, "pct_acumulado": 97.37, "pct_diff": 0.03}, {"dia": 113, "qtd": 31, "acumulado": 94847, "pct_acumulado": 97.4, "pct_diff": 0.03}, {"dia": 114, "qtd": 23, "acumulado": 94870, "pct_acumulado": 97.42, "pct_diff": 0.02}, {"dia": 115, "qtd": 27, "acumulado": 94897, "pct_acumulado": 97.45, "pct_diff": 0.03}, {"dia": 116, "qtd": 28, "acumulado": 94925, "pct_acumulado": 97.48, "pct_diff": 0.03}, {"dia": 117, "qtd": 24, "acumulado": 94949, "pct_acumulado": 97.51, "pct_diff": 0.03}, {"dia": 118, "qtd": 32, "acumulado": 94981, "pct_acumulado": 97.54, "pct_diff": 0.03}, {"dia": 119, "qtd": 44, "acumulado": 95025, "pct_acumulado": 97.58, "pct_diff": 0.04}, {"dia": 120, "qtd": 45, "acumulado": 95070, "pct_acumulado": 97.63, "pct_diff": 0.05}, {"dia": 121, "qtd": 40, "acumulado": 95110, "pct_acumulado": 97.67, "pct_diff": 0.04}, {"dia": 122, "qtd": 49, "acumulado": 95159, "pct_acumulado": 97.72, "pct_diff": 0.05}, {"dia": 123, "qtd": 38, "acumulado": 95197, "pct_acumulado": 97.76, "pct_diff": 0.04}, {"dia": 124, "qtd": 42, "acumulado": 95239, "pct_acumulado": 97.8, "pct_diff": 0.04}, {"dia": 125, "qtd": 36, "acumulado": 95275, "pct_acumulado": 97.84, "pct_diff": 0.04}, {"dia": 126, "qtd": 23, "acumulado": 95298, "pct_acumulado": 97.86, "pct_diff": 0.02}, {"dia": 127, "qtd": 30, "acumulado": 95328, "pct_acumulado": 97.89, "pct_diff": 0.03}, {"dia": 128, "qtd": 25, "acumulado": 95353, "pct_acumulado": 97.92, "pct_diff": 0.03}, {"dia": 129, "qtd": 30, "acumulado": 95383, "pct_acumulado": 97.95, "pct_diff": 0.03}, {"dia": 130, "qtd": 22, "acumulado": 95405, "pct_acumulado": 97.97, "pct_diff": 0.02}, {"dia": 131, "qtd": 21, "acumulado": 95426, "pct_acumulado": 98, "pct_diff": 0.03}, {"dia": 132, "qtd": 20, "acumulado": 95446, "pct_acumulado": 98.02, "pct_diff": 0.02}, {"dia": 133, "qtd": 31, "acumulado": 95477, "pct_acumulado": 98.05, "pct_diff": 0.03}, {"dia": 134, "qtd": 31, "acumulado": 95508, "pct_acumulado": 98.08, "pct_diff": 0.03}, {"dia": 135, "qtd": 22, "acumulado": 95530, "pct_acumulado": 98.1, "pct_diff": 0.02}, {"dia": 136, "qtd": 26, "acumulado": 95556, "pct_acumulado": 98.13, "pct_diff": 0.03}, {"dia": 137, "qtd": 21, "acumulado": 95577, "pct_acumulado": 98.15, "pct_diff": 0.02}, {"dia": 138, "qtd": 17, "acumulado": 95594, "pct_acumulado": 98.17, "pct_diff": 0.02}, {"dia": 139, "qtd": 17, "acumulado": 95611, "pct_acumulado": 98.19, "pct_diff": 0.02}, {"dia": 140, "qtd": 16, "acumulado": 95627, "pct_acumulado": 98.2, "pct_diff": 0.01}, {"dia": 141, "qtd": 13, "acumulado": 95640, "pct_acumulado": 98.22, "pct_diff": 0.02}, {"dia": 142, "qtd": 12, "acumulado": 95652, "pct_acumulado": 98.23, "pct_diff": 0.01}, {"dia": 143, "qtd": 17, "acumulado": 95669, "pct_acumulado": 98.24, "pct_diff": 0.01}, {"dia": 144, "qtd": 12, "acumulado": 95681, "pct_acumulado": 98.26, "pct_diff": 0.02}, {"dia": 145, "qtd": 17, "acumulado": 95698, "pct_acumulado": 98.27, "pct_diff": 0.01}, {"dia": 146, "qtd": 19, "acumulado": 95717, "pct_acumulado": 98.29, "pct_diff": 0.02}, {"dia": 147, "qtd": 19, "acumulado": 95736, "pct_acumulado": 98.31, "pct_diff": 0.02}, {"dia": 148, "qtd": 21, "acumulado": 95757, "pct_acumulado": 98.34, "pct_diff": 0.03}, {"dia": 149, "qtd": 25, "acumulado": 95782, "pct_acumulado": 98.36, "pct_diff": 0.02}, {"dia": 150, "qtd": 24, "acumulado": 95806, "pct_acumulado": 98.39, "pct_diff": 0.03}, {"dia": 151, "qtd": 24, "acumulado": 95830, "pct_acumulado": 98.41, "pct_diff": 0.02}, {"dia": 152, "qtd": 28, "acumulado": 95858, "pct_acumulado": 98.44, "pct_diff": 0.03}, {"dia": 153, "qtd": 32, "acumulado": 95890, "pct_acumulado": 98.47, "pct_diff": 0.03}, {"dia": 154, "qtd": 33, "acumulado": 95923, "pct_acumulado": 98.51, "pct_diff": 0.04}, {"dia": 155, "qtd": 26, "acumulado": 95949, "pct_acumulado": 98.53, "pct_diff": 0.02}, {"dia": 156, "qtd": 22, "acumulado": 95971, "pct_acumulado": 98.56, "pct_diff": 0.03}, {"dia": 157, "qtd": 20, "acumulado": 95991, "pct_acumulado": 98.58, "pct_diff": 0.02}, {"dia": 158, "qtd": 18, "acumulado": 96009, "pct_acumulado": 98.59, "pct_diff": 0.01}, {"dia": 159, "qtd": 15, "acumulado": 96024, "pct_acumulado": 98.61, "pct_diff": 0.02}, {"dia": 160, "qtd": 14, "acumulado": 96038, "pct_acumulado": 98.62, "pct_diff": 0.01}, {"dia": 161, "qtd": 20, "acumulado": 96058, "pct_acumulado": 98.64, "pct_diff": 0.02}, {"dia": 162, "qtd": 22, "acumulado": 96080, "pct_acumulado": 98.67, "pct_diff": 0.03}, {"dia": 163, "qtd": 24, "acumulado": 96104, "pct_acumulado": 98.69, "pct_diff": 0.02}, {"dia": 164, "qtd": 31, "acumulado": 96135, "pct_acumulado": 98.72, "pct_diff": 0.03}, {"dia": 165, "qtd": 22, "acumulado": 96157, "pct_acumulado": 98.75, "pct_diff": 0.03}, {"dia": 166, "qtd": 15, "acumulado": 96172, "pct_acumulado": 98.76, "pct_diff": 0.01}, {"dia": 167, "qtd": 12, "acumulado": 96184, "pct_acumulado": 98.77, "pct_diff": 0.01}, {"dia": 168, "qtd": 11, "acumulado": 96195, "pct_acumulado": 98.79, "pct_diff": 0.02}, {"dia": 169, "qtd": 10, "acumulado": 96205, "pct_acumulado": 98.8, "pct_diff": 0.01}, {"dia": 170, "qtd": 8, "acumulado": 96213, "pct_acumulado": 98.8, "pct_diff": 0}, {"dia": 171, "qtd": 12, "acumulado": 96225, "pct_acumulado": 98.82, "pct_diff": 0.02}, {"dia": 172, "qtd": 14, "acumulado": 96239, "pct_acumulado": 98.83, "pct_diff": 0.01}, {"dia": 173, "qtd": 11, "acumulado": 96250, "pct_acumulado": 98.84, "pct_diff": 0.01}, {"dia": 174, "qtd": 15, "acumulado": 96265, "pct_acumulado": 98.86, "pct_diff": 0.02}, {"dia": 175, "qtd": 12, "acumulado": 96277, "pct_acumulado": 98.87, "pct_diff": 0.01}, {"dia": 176, "qtd": 10, "acumulado": 96287, "pct_acumulado": 98.88, "pct_diff": 0.01}, {"dia": 177, "qtd": 9, "acumulado": 96296, "pct_acumulado": 98.89, "pct_diff": 0.01}, {"dia": 178, "qtd": 13, "acumulado": 96309, "pct_acumulado": 98.9, "pct_diff": 0.01}, {"dia": 179, "qtd": 13, "acumulado": 96322, "pct_acumulado": 98.92, "pct_diff": 0.02}, {"dia": 180, "qtd": 16, "acumulado": 96338, "pct_acumulado": 98.93, "pct_diff": 0.01}, {"dia": 181, "qtd": 21, "acumulado": 96359, "pct_acumulado": 98.95, "pct_diff": 0.02}, {"dia": 182, "qtd": 23, "acumulado": 96382, "pct_acumulado": 98.98, "pct_diff": 0.03}, {"dia": 183, "qtd": 20, "acumulado": 96402, "pct_acumulado": 99, "pct_diff": 0.02}, {"dia": 184, "qtd": 17, "acumulado": 96419, "pct_acumulado": 99.02, "pct_diff": 0.02}, {"dia": 185, "qtd": 17, "acumulado": 96436, "pct_acumulado": 99.03, "pct_diff": 0.01}, {"dia": 186, "qtd": 17, "acumulado": 96453, "pct_acumulado": 99.05, "pct_diff": 0.02}, {"dia": 187, "qtd": 11, "acumulado": 96464, "pct_acumulado": 99.06, "pct_diff": 0.01}, {"dia": 188, "qtd": 14, "acumulado": 96478, "pct_acumulado": 99.08, "pct_diff": 0.02}, {"dia": 189, "qtd": 16, "acumulado": 96494, "pct_acumulado": 99.09, "pct_diff": 0.01}, {"dia": 190, "qtd": 11, "acumulado": 96505, "pct_acumulado": 99.1, "pct_diff": 0.01}, {"dia": 191, "qtd": 16, "acumulado": 96521, "pct_acumulado": 99.12, "pct_diff": 0.02}, {"dia": 192, "qtd": 15, "acumulado": 96536, "pct_acumulado": 99.14, "pct_diff": 0.02}, {"dia": 193, "qtd": 14, "acumulado": 96550, "pct_acumulado": 99.15, "pct_diff": 0.01}, {"dia": 194, "qtd": 15, "acumulado": 96565, "pct_acumulado": 99.17, "pct_diff": 0.02}, {"dia": 195, "qtd": 21, "acumulado": 96586, "pct_acumulado": 99.19, "pct_diff": 0.02}, {"dia": 196, "qtd": 11, "acumulado": 96597, "pct_acumulado": 99.2, "pct_diff": 0.01}, {"dia": 197, "qtd": 9, "acumulado": 96606, "pct_acumulado": 99.21, "pct_diff": 0.01}, {"dia": 198, "qtd": 6, "acumulado": 96612, "pct_acumulado": 99.21, "pct_diff": 0}, {"dia": 199, "qtd": 10, "acumulado": 96622, "pct_acumulado": 99.22, "pct_diff": 0.01}, {"dia": 200, "qtd": 5, "acumulado": 96627, "pct_acumulado": 99.23, "pct_diff": 0.01}, {"dia": 201, "qtd": 5, "acumulado": 96632, "pct_acumulado": 99.23, "pct_diff": 0}, {"dia": 202, "qtd": 6, "acumulado": 96638, "pct_acumulado": 99.24, "pct_diff": 0.01}, {"dia": 203, "qtd": 6, "acumulado": 96644, "pct_acumulado": 99.25, "pct_diff": 0.01}, {"dia": 204, "qtd": 6, "acumulado": 96650, "pct_acumulado": 99.25, "pct_diff": 0}, {"dia": 205, "qtd": 5, "acumulado": 96655, "pct_acumulado": 99.26, "pct_diff": 0.01}, {"dia": 206, "qtd": 11, "acumulado": 96666, "pct_acumulado": 99.27, "pct_diff": 0.01}, {"dia": 207, "qtd": 8, "acumulado": 96674, "pct_acumulado": 99.28, "pct_diff": 0.01}, {"dia": 208, "qtd": 7, "acumulado": 96681, "pct_acumulado": 99.28, "pct_diff": 0}, {"dia": 209, "qtd": 9, "acumulado": 96690, "pct_acumulado": 99.29, "pct_diff": 0.01}, {"dia": 210, "qtd": 11, "acumulado": 96701, "pct_acumulado": 99.3, "pct_diff": 0.01}, {"dia": 211, "qtd": 12, "acumulado": 96713, "pct_acumulado": 99.32, "pct_diff": 0.02}, {"dia": 212, "qtd": 11, "acumulado": 96724, "pct_acumulado": 99.33, "pct_diff": 0.01}, {"dia": 213, "qtd": 12, "acumulado": 96736, "pct_acumulado": 99.34, "pct_diff": 0.01}, {"dia": 214, "qtd": 10, "acumulado": 96746, "pct_acumulado": 99.35, "pct_diff": 0.01}, {"dia": 215, "qtd": 8, "acumulado": 96754, "pct_acumulado": 99.36, "pct_diff": 0.01}, {"dia": 216, "qtd": 7, "acumulado": 96761, "pct_acumulado": 99.37, "pct_diff": 0.01}, {"dia": 217, "qtd": 9, "acumulado": 96770, "pct_acumulado": 99.38, "pct_diff": 0.01}, {"dia": 218, "qtd": 7, "acumulado": 96777, "pct_acumulado": 99.38, "pct_diff": 0}, {"dia": 219, "qtd": 9, "acumulado": 96786, "pct_acumulado": 99.39, "pct_diff": 0.01}, {"dia": 220, "qtd": 5, "acumulado": 96791, "pct_acumulado": 99.4, "pct_diff": 0.01}, {"dia": 221, "qtd": 5, "acumulado": 96796, "pct_acumulado": 99.4, "pct_diff": 0}, {"dia": 222, "qtd": 6, "acumulado": 96802, "pct_acumulado": 99.41, "pct_diff": 0.01}, {"dia": 223, "qtd": 3, "acumulado": 96805, "pct_acumulado": 99.41, "pct_diff": 0}, {"dia": 224, "qtd": 9, "acumulado": 96814, "pct_acumulado": 99.42, "pct_diff": 0.01}, {"dia": 225, "qtd": 8, "acumulado": 96822, "pct_acumulado": 99.43, "pct_diff": 0.01}, {"dia": 226, "qtd": 7, "acumulado": 96829, "pct_acumulado": 99.44, "pct_diff": 0.01}, {"dia": 227, "qtd": 6, "acumulado": 96835, "pct_acumulado": 99.44, "pct_diff": 0}, {"dia": 228, "qtd": 6, "acumulado": 96841, "pct_acumulado": 99.45, "pct_diff": 0.01}, {"dia": 229, "qtd": 4, "acumulado": 96845, "pct_acumulado": 99.45, "pct_diff": 0}, {"dia": 230, "qtd": 4, "acumulado": 96849, "pct_acumulado": 99.46, "pct_diff": 0.01}, {"dia": 231, "qtd": 4, "acumulado": 96853, "pct_acumulado": 99.46, "pct_diff": 0}, {"dia": 232, "qtd": 5, "acumulado": 96858, "pct_acumulado": 99.47, "pct_diff": 0.01}, {"dia": 233, "qtd": 5, "acumulado": 96863, "pct_acumulado": 99.47, "pct_diff": 0}, {"dia": 234, "qtd": 4, "acumulado": 96867, "pct_acumulado": 99.48, "pct_diff": 0.01}, {"dia": 235, "qtd": 3, "acumulado": 96870, "pct_acumulado": 99.48, "pct_diff": 0}, {"dia": 236, "qtd": 3, "acumulado": 96873, "pct_acumulado": 99.48, "pct_diff": 0}, {"dia": 237, "qtd": 5, "acumulado": 96878, "pct_acumulado": 99.49, "pct_diff": 0.01}, {"dia": 238, "qtd": 5, "acumulado": 96883, "pct_acumulado": 99.49, "pct_diff": 0}, {"dia": 239, "qtd": 5, "acumulado": 96888, "pct_acumulado": 99.5, "pct_diff": 0.01}, {"dia": 240, "qtd": 5, "acumulado": 96893, "pct_acumulado": 99.5, "pct_diff": 0}, {"dia": 241, "qtd": 8, "acumulado": 96901, "pct_acumulado": 99.51, "pct_diff": 0.01}, {"dia": 242, "qtd": 9, "acumulado": 96910, "pct_acumulado": 99.52, "pct_diff": 0.01}, {"dia": 243, "qtd": 6, "acumulado": 96916, "pct_acumulado": 99.53, "pct_diff": 0.01}, {"dia": 244, "qtd": 12, "acumulado": 96928, "pct_acumulado": 99.54, "pct_diff": 0.01}, {"dia": 245, "qtd": 7, "acumulado": 96935, "pct_acumulado": 99.55, "pct_diff": 0.01}, {"dia": 246, "qtd": 7, "acumulado": 96942, "pct_acumulado": 99.55, "pct_diff": 0}, {"dia": 247, "qtd": 3, "acumulado": 96945, "pct_acumulado": 99.56, "pct_diff": 0.01}, {"dia": 248, "qtd": 5, "acumulado": 96950, "pct_acumulado": 99.56, "pct_diff": 0}, {"dia": 249, "qtd": 6, "acumulado": 96956, "pct_acumulado": 99.57, "pct_diff": 0.01}, {"dia": 250, "qtd": 5, "acumulado": 96961, "pct_acumulado": 99.57, "pct_diff": 0}, {"dia": 251, "qtd": 10, "acumulado": 96971, "pct_acumulado": 99.58, "pct_diff": 0.01}, {"dia": 252, "qtd": 7, "acumulado": 96978, "pct_acumulado": 99.59, "pct_diff": 0.01}, {"dia": 253, "qtd": 4, "acumulado": 96982, "pct_acumulado": 99.59, "pct_diff": 0}, {"dia": 254, "qtd": 5, "acumulado": 96987, "pct_acumulado": 99.6, "pct_diff": 0.01}, {"dia": 255, "qtd": 6, "acumulado": 96993, "pct_acumulado": 99.6, "pct_diff": 0}, {"dia": 256, "qtd": 6, "acumulado": 96999, "pct_acumulado": 99.61, "pct_diff": 0.01}, {"dia": 257, "qtd": 6, "acumulado": 97005, "pct_acumulado": 99.62, "pct_diff": 0.01}, {"dia": 258, "qtd": 4, "acumulado": 97009, "pct_acumulado": 99.62, "pct_diff": 0}, {"dia": 259, "qtd": 4, "acumulado": 97013, "pct_acumulado": 99.63, "pct_diff": 0.01}, {"dia": 260, "qtd": 3, "acumulado": 97016, "pct_acumulado": 99.63, "pct_diff": 0}, {"dia": 261, "qtd": 4, "acumulado": 97020, "pct_acumulado": 99.63, "pct_diff": 0}, {"dia": 262, "qtd": 3, "acumulado": 97023, "pct_acumulado": 99.64, "pct_diff": 0.01}, {"dia": 263, "qtd": 3, "acumulado": 97026, "pct_acumulado": 99.64, "pct_diff": 0}, {"dia": 264, "qtd": 2, "acumulado": 97028, "pct_acumulado": 99.64, "pct_diff": 0}, {"dia": 265, "qtd": 2, "acumulado": 97030, "pct_acumulado": 99.64, "pct_diff": 0}, {"dia": 266, "qtd": 5, "acumulado": 97035, "pct_acumulado": 99.65, "pct_diff": 0.01}, {"dia": 267, "qtd": 3, "acumulado": 97038, "pct_acumulado": 99.65, "pct_diff": 0}, {"dia": 268, "qtd": 2, "acumulado": 97040, "pct_acumulado": 99.65, "pct_diff": 0}, {"dia": 269, "qtd": 5, "acumulado": 97045, "pct_acumulado": 99.66, "pct_diff": 0.01}, {"dia": 270, "qtd": 4, "acumulado": 97049, "pct_acumulado": 99.66, "pct_diff": 0}, {"dia": 271, "qtd": 7, "acumulado": 97056, "pct_acumulado": 99.67, "pct_diff": 0.01}, {"dia": 272, "qtd": 6, "acumulado": 97062, "pct_acumulado": 99.68, "pct_diff": 0.01}, {"dia": 273, "qtd": 8, "acumulado": 97070, "pct_acumulado": 99.68, "pct_diff": 0}, {"dia": 274, "qtd": 6, "acumulado": 97076, "pct_acumulado": 99.69, "pct_diff": 0.01}, {"dia": 275, "qtd": 4, "acumulado": 97080, "pct_acumulado": 99.69, "pct_diff": 0}, {"dia": 276, "qtd": 3, "acumulado": 97083, "pct_acumulado": 99.7, "pct_diff": 0.01}, {"dia": 277, "qtd": 4, "acumulado": 97087, "pct_acumulado": 99.7, "pct_diff": 0}, {"dia": 278, "qtd": 5, "acumulado": 97092, "pct_acumulado": 99.71, "pct_diff": 0.01}, {"dia": 279, "qtd": 4, "acumulado": 97096, "pct_acumulado": 99.71, "pct_diff": 0}, {"dia": 280, "qtd": 4, "acumulado": 97100, "pct_acumulado": 99.71, "pct_diff": 0}, {"dia": 281, "qtd": 3, "acumulado": 97103, "pct_acumulado": 99.72, "pct_diff": 0.01}, {"dia": 282, "qtd": 3, "acumulado": 97106, "pct_acumulado": 99.72, "pct_diff": 0}, {"dia": 283, "qtd": 5, "acumulado": 97111, "pct_acumulado": 99.73, "pct_diff": 0.01}, {"dia": 284, "qtd": 5, "acumulado": 97116, "pct_acumulado": 99.73, "pct_diff": 0}, {"dia": 285, "qtd": 4, "acumulado": 97120, "pct_acumulado": 99.74, "pct_diff": 0.01}, {"dia": 286, "qtd": 5, "acumulado": 97125, "pct_acumulado": 99.74, "pct_diff": 0}, {"dia": 287, "qtd": 3, "acumulado": 97128, "pct_acumulado": 99.74, "pct_diff": 0}, {"dia": 288, "qtd": 3, "acumulado": 97131, "pct_acumulado": 99.75, "pct_diff": 0.01}, {"dia": 289, "qtd": 2, "acumulado": 97133, "pct_acumulado": 99.75, "pct_diff": 0}, {"dia": 290, "qtd": 3, "acumulado": 97136, "pct_acumulado": 99.75, "pct_diff": 0}, {"dia": 291, "qtd": 2, "acumulado": 97138, "pct_acumulado": 99.75, "pct_diff": 0}, {"dia": 292, "qtd": 2, "acumulado": 97140, "pct_acumulado": 99.76, "pct_diff": 0.01}, {"dia": 293, "qtd": 3, "acumulado": 97143, "pct_acumulado": 99.76, "pct_diff": 0}, {"dia": 294, "qtd": 2, "acumulado": 97145, "pct_acumulado": 99.76, "pct_diff": 0}, {"dia": 295, "qtd": 2, "acumulado": 97147, "pct_acumulado": 99.76, "pct_diff": 0}, {"dia": 296, "qtd": 3, "acumulado": 97150, "pct_acumulado": 99.77, "pct_diff": 0.01}, {"dia": 297, "qtd": 4, "acumulado": 97154, "pct_acumulado": 99.77, "pct_diff": 0}, {"dia": 298, "qtd": 3, "acumulado": 97157, "pct_acumulado": 99.77, "pct_diff": 0}, {"dia": 299, "qtd": 2, "acumulado": 97159, "pct_acumulado": 99.78, "pct_diff": 0.01}, {"dia": 300, "qtd": 4, "acumulado": 97163, "pct_acumulado": 99.78, "pct_diff": 0}, {"dia": 301, "qtd": 3, "acumulado": 97166, "pct_acumulado": 99.78, "pct_diff": 0}, {"dia": 302, "qtd": 6, "acumulado": 97172, "pct_acumulado": 99.79, "pct_diff": 0.01}, {"dia": 303, "qtd": 4, "acumulado": 97176, "pct_acumulado": 99.79, "pct_diff": 0}, {"dia": 304, "qtd": 5, "acumulado": 97181, "pct_acumulado": 99.8, "pct_diff": 0.01}, {"dia": 305, "qtd": 5, "acumulado": 97186, "pct_acumulado": 99.8, "pct_diff": 0}, {"dia": 306, "qtd": 5, "acumulado": 97191, "pct_acumulado": 99.81, "pct_diff": 0.01}, {"dia": 307, "qtd": 5, "acumulado": 97196, "pct_acumulado": 99.81, "pct_diff": 0}, {"dia": 308, "qtd": 6, "acumulado": 97202, "pct_acumulado": 99.82, "pct_diff": 0.01}, {"dia": 309, "qtd": 3, "acumulado": 97205, "pct_acumulado": 99.82, "pct_diff": 0}, {"dia": 310, "qtd": 3, "acumulado": 97208, "pct_acumulado": 99.83, "pct_diff": 0.01}, {"dia": 311, "qtd": 3, "acumulado": 97211, "pct_acumulado": 99.83, "pct_diff": 0}, {"dia": 312, "qtd": 4, "acumulado": 97215, "pct_acumulado": 99.83, "pct_diff": 0}, {"dia": 313, "qtd": 3, "acumulado": 97218, "pct_acumulado": 99.84, "pct_diff": 0.01}, {"dia": 314, "qtd": 3, "acumulado": 97221, "pct_acumulado": 99.84, "pct_diff": 0}, {"dia": 315, "qtd": 2, "acumulado": 97223, "pct_acumulado": 99.84, "pct_diff": 0}, {"dia": 316, "qtd": 3, "acumulado": 97226, "pct_acumulado": 99.84, "pct_diff": 0}, {"dia": 317, "qtd": 5, "acumulado": 97231, "pct_acumulado": 99.85, "pct_diff": 0.01}, {"dia": 318, "qtd": 4, "acumulado": 97235, "pct_acumulado": 99.85, "pct_diff": 0}, {"dia": 319, "qtd": 2, "acumulado": 97237, "pct_acumulado": 99.86, "pct_diff": 0.01}, {"dia": 320, "qtd": 2, "acumulado": 97239, "pct_acumulado": 99.86, "pct_diff": 0}, {"dia": 321, "qtd": 1, "acumulado": 97240, "pct_acumulado": 99.86, "pct_diff": 0}, {"dia": 322, "qtd": 2, "acumulado": 97242, "pct_acumulado": 99.86, "pct_diff": 0}, {"dia": 323, "qtd": 1, "acumulado": 97243, "pct_acumulado": 99.86, "pct_diff": 0}, {"dia": 324, "qtd": 2, "acumulado": 97245, "pct_acumulado": 99.86, "pct_diff": 0}, {"dia": 325, "qtd": 2, "acumulado": 97247, "pct_acumulado": 99.87, "pct_diff": 0.01}, {"dia": 326, "qtd": 3, "acumulado": 97250, "pct_acumulado": 99.87, "pct_diff": 0}, {"dia": 327, "qtd": 1, "acumulado": 97251, "pct_acumulado": 99.87, "pct_diff": 0}, {"dia": 328, "qtd": 2, "acumulado": 97253, "pct_acumulado": 99.87, "pct_diff": 0}, {"dia": 329, "qtd": 3, "acumulado": 97256, "pct_acumulado": 99.87, "pct_diff": 0}, {"dia": 330, "qtd": 2, "acumulado": 97258, "pct_acumulado": 99.88, "pct_diff": 0.01}, {"dia": 331, "qtd": 2, "acumulado": 97260, "pct_acumulado": 99.88, "pct_diff": 0}, {"dia": 332, "qtd": 2, "acumulado": 97262, "pct_acumulado": 99.88, "pct_diff": 0}, {"dia": 333, "qtd": 4, "acumulado": 97266, "pct_acumulado": 99.88, "pct_diff": 0}, {"dia": 334, "qtd": 3, "acumulado": 97269, "pct_acumulado": 99.89, "pct_diff": 0.01}, {"dia": 335, "qtd": 3, "acumulado": 97272, "pct_acumulado": 99.89, "pct_diff": 0}, {"dia": 336, "qtd": 5, "acumulado": 97277, "pct_acumulado": 99.9, "pct_diff": 0.01}, {"dia": 337, "qtd": 5, "acumulado": 97282, "pct_acumulado": 99.9, "pct_diff": 0}, {"dia": 338, "qtd": 3, "acumulado": 97285, "pct_acumulado": 99.9, "pct_diff": 0}, {"dia": 339, "qtd": 4, "acumulado": 97289, "pct_acumulado": 99.91, "pct_diff": 0.01}, {"dia": 340, "qtd": 3, "acumulado": 97292, "pct_acumulado": 99.91, "pct_diff": 0}, {"dia": 341, "qtd": 3, "acumulado": 97295, "pct_acumulado": 99.91, "pct_diff": 0}, {"dia": 342, "qtd": 3, "acumulado": 97298, "pct_acumulado": 99.92, "pct_diff": 0.01}, {"dia": 343, "qtd": 3, "acumulado": 97301, "pct_acumulado": 99.92, "pct_diff": 0}, {"dia": 344, "qtd": 2, "acumulado": 97303, "pct_acumulado": 99.92, "pct_diff": 0}, {"dia": 345, "qtd": 2, "acumulado": 97305, "pct_acumulado": 99.93, "pct_diff": 0.01}, {"dia": 346, "qtd": 2, "acumulado": 97307, "pct_acumulado": 99.93, "pct_diff": 0}, {"dia": 347, "qtd": 2, "acumulado": 97309, "pct_acumulado": 99.93, "pct_diff": 0}, {"dia": 348, "qtd": 5, "acumulado": 97314, "pct_acumulado": 99.93, "pct_diff": 0}, {"dia": 349, "qtd": 2, "acumulado": 97316, "pct_acumulado": 99.94, "pct_diff": 0.01}, {"dia": 350, "qtd": 2, "acumulado": 97318, "pct_acumulado": 99.94, "pct_diff": 0}, {"dia": 351, "qtd": 1, "acumulado": 97319, "pct_acumulado": 99.94, "pct_diff": 0}, {"dia": 352, "qtd": 2, "acumulado": 97321, "pct_acumulado": 99.94, "pct_diff": 0}, {"dia": 353, "qtd": 2, "acumulado": 97323, "pct_acumulado": 99.94, "pct_diff": 0}, {"dia": 354, "qtd": 1, "acumulado": 97324, "pct_acumulado": 99.94, "pct_diff": 0}, {"dia": 355, "qtd": 3, "acumulado": 97327, "pct_acumulado": 99.95, "pct_diff": 0.01}, {"dia": 356, "qtd": 1, "acumulado": 97328, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 357, "qtd": 1, "acumulado": 97329, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 358, "qtd": 1, "acumulado": 97330, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 359, "qtd": 1, "acumulado": 97331, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 360, "qtd": 1, "acumulado": 97332, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 361, "qtd": 1, "acumulado": 97333, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 362, "qtd": 1, "acumulado": 97334, "pct_acumulado": 99.95, "pct_diff": 0}, {"dia": 363, "qtd": 2, "acumulado": 97336, "pct_acumulado": 99.96, "pct_diff": 0.01}, {"dia": 364, "qtd": 4, "acumulado": 97340, "pct_acumulado": 99.96, "pct_diff": 0}, {"dia": 365, "qtd": 3, "acumulado": 97343, "pct_acumulado": 99.96, "pct_diff": 0}, {"dia": 366, "qtd": 2, "acumulado": 97345, "pct_acumulado": 99.97, "pct_diff": 0.01}, {"dia": 367, "qtd": 1, "acumulado": 97346, "pct_acumulado": 99.97, "pct_diff": 0}, {"dia": 368, "qtd": 2, "acumulado": 97348, "pct_acumulado": 99.97, "pct_diff": 0}, {"dia": 369, "qtd": 1, "acumulado": 97349, "pct_acumulado": 99.97, "pct_diff": 0}, {"dia": 370, "qtd": 1, "acumulado": 97350, "pct_acumulado": 99.97, "pct_diff": 0}, {"dia": 371, "qtd": 1, "acumulado": 97351, "pct_acumulado": 99.97, "pct_diff": 0}, {"dia": 372, "qtd": 2, "acumulado": 97353, "pct_acumulado": 99.97, "pct_diff": 0}, {"dia": 374, "qtd": 2, "acumulado": 97355, "pct_acumulado": 99.98, "pct_diff": 0.01}, {"dia": 375, "qtd": 2, "acumulado": 97357, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 376, "qtd": 1, "acumulado": 97358, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 377, "qtd": 1, "acumulado": 97359, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 378, "qtd": 0, "acumulado": 97359, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 379, "qtd": 1, "acumulado": 97360, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 380, "qtd": 1, "acumulado": 97361, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 381, "qtd": 1, "acumulado": 97362, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 382, "qtd": 1, "acumulado": 97363, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 383, "qtd": 0, "acumulado": 97363, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 384, "qtd": 0, "acumulado": 97363, "pct_acumulado": 99.98, "pct_diff": 0}, {"dia": 385, "qtd": 1, "acumulado": 97364, "pct_acumulado": 99.99, "pct_diff": 0.01}, {"dia": 386, "qtd": 1, "acumulado": 97365, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 387, "qtd": 0, "acumulado": 97365, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 388, "qtd": 0, "acumulado": 97365, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 389, "qtd": 0, "acumulado": 97365, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 390, "qtd": 0, "acumulado": 97365, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 391, "qtd": 1, "acumulado": 97366, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 392, "qtd": 1, "acumulado": 97367, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 393, "qtd": 1, "acumulado": 97368, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 394, "qtd": 1, "acumulado": 97369, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 395, "qtd": 2, "acumulado": 97371, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 396, "qtd": 1, "acumulado": 97372, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 397, "qtd": 0, "acumulado": 97372, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 399, "qtd": 1, "acumulado": 97373, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 400, "qtd": 0, "acumulado": 97373, "pct_acumulado": 99.99, "pct_diff": 0}, {"dia": 401, "qtd": 1, "acumulado": 97374, "pct_acumulado": 100, "pct_diff": 0.01}, {"dia": 403, "qtd": 1, "acumulado": 97375, "pct_acumulado": 100, "pct_diff": 0}, {"dia": 404, "qtd": 1, "acumulado": 97376, "pct_acumulado": 100, "pct_diff": 0}, {"dia": 405, "qtd": 1, "acumulado": 97377, "pct_acumulado": 100, "pct_diff": 0}, {"dia": 406, "qtd": 1, "acumulado": 97378, "pct_acumulado": 100, "pct_diff": 0}, {"dia": 408, "qtd": 0, "acumulado": 97378, "pct_acumulado": 100, "pct_diff": 0}, {"dia": 411, "qtd": 0, "acumulado": 97378, "pct_acumulado": 100, "pct_diff": 0}, {"dia": 414, "qtd": 0, "acumulado": 97378, "pct_acumulado": 100, "pct_diff": 0}];
+
+const totalUsuarios = 97378;
+
+function getDataUpTo(maxDia) {
+  return RAW_DATA.filter(d => d.dia <= maxDia);
+}
+
+function fmt(n) {
+  if (n === null || n === undefined) return '—';
+  return n.toLocaleString('pt-BR');
+}
+
+let chart;
+
+function buildChart(maxDia) {
+  const slice = getDataUpTo(maxDia);
+  const labels = slice.map(d => d.dia);
+  const qtds = slice.map(d => d.qtd);
+  const pcts = slice.map(d => d.pct_acumulado);
+
+  const paretoY = 80;
+  const ctx = document.getElementById('chartMain').getContext('2d');
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: '% Acumulado',
+          data: pcts,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.08)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#6366f1',
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'yPct',
+          order: 1,
+        },
+        {
+          type: 'bar',
+          label: 'Usuários no Dia',
+          data: qtds,
+          backgroundColor: 'rgba(34,211,238,0.3)',
+          borderColor: 'rgba(34,211,238,0.6)',
+          borderWidth: 1,
+          borderRadius: 2,
+          yAxisID: 'yQtd',
+          order: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      onHover: (evt, elements) => {
+        if (elements.length > 0) {
+          const idx = elements[0].index;
+          const d = getDataUpTo(maxDia)[idx];
+          if (d) updateCards(d);
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2e3347',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          padding: 12,
+          callbacks: {
+            title: (items) => `Dia ${items[0].label}`,
+            label: (item) => {
+              if (item.dataset.label === '% Acumulado')
+                return ` ${item.raw}% acumulado`;
+              return ` ${item.raw.toLocaleString('pt-BR')} usuários`;
+            }
+          }
+        },
+        annotation: {
+          annotations: {
+            pareto: {
+              type: 'line',
+              yScaleID: 'yPct',
+              yMin: paretoY,
+              yMax: paretoY,
+              borderColor: '#f59e0b',
+              borderWidth: 1.5,
+              borderDash: [6, 4],
+              label: {
+                display: true,
+                content: '80% — Pareto',
+                color: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.12)',
+                font: { size: 11, weight: '600' },
+                position: 'end',
+                yAdjust: -10,
+              }
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#64748b',
+            maxTicksLimit: 16,
+            font: { size: 11 },
+            callback: (val, idx) => labels[idx]
+          },
+          title: {
+            display: true,
+            text: 'Mediana de Dias entre Envios de NF',
+            color: '#64748b',
+            font: { size: 11 }
+          }
+        },
+        yPct: {
+          position: 'left',
+          min: 0, max: 100,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: {
+            color: '#6366f1',
+            font: { size: 11 },
+            callback: v => v + '%'
+          },
+          title: {
+            display: true,
+            text: '% Acumulado de Usuários',
+            color: '#6366f1',
+            font: { size: 11 }
+          }
+        },
+        yQtd: {
+          position: 'right',
+          grid: { display: false },
+          ticks: {
+            color: 'rgba(34,211,238,0.7)',
+            font: { size: 11 },
+            callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v
+          },
+          title: {
+            display: true,
+            text: 'Usuários no Dia',
+            color: 'rgba(34,211,238,0.7)',
+            font: { size: 11 }
+          }
+        }
+      }
+    }
+  });
+}
+
+function updateCards(d) {
+  document.getElementById('cardDia').textContent = d.dia + (d.dia === 1 ? ' dia' : ' dias');
+  document.getElementById('cardQtd').textContent = fmt(d.qtd);
+  document.getElementById('cardAcum').textContent = fmt(d.acumulado);
+  document.getElementById('cardAcumSub').textContent = `até o dia ${d.dia}`;
+  document.getElementById('cardPct').textContent = d.pct_acumulado + '%';
+  document.getElementById('cardPctSub').textContent = d.pct_acumulado >= 80
+    ? '✅ Acima do Pareto (80%)'
+    : `faltam ${(80 - d.pct_acumulado).toFixed(2)}pp para o Pareto`;
+}
+
+function onSlider(val) {
+  document.getElementById('sliderDisplay').textContent = val + ' dias';
+  buildChart(parseInt(val));
+  const slice = getDataUpTo(parseInt(val));
+  if (slice.length) updateCards(slice[slice.length - 1]);
+}
+
+buildChart(30);
+const initial = getDataUpTo(30);
+if (initial.length) updateCards(initial[initial.length - 1]);
+</script>
+</body>
+</html>

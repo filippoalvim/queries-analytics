@@ -2,6 +2,12 @@
 
 Este repositório documenta a análise de **churn comportamental de usuários** no produto de escaneamento de notas fiscais da VR, com foco na definição de limiares de **pré-churn**, **churn** e **pós-churn** a partir do comportamento real de envio dos usuários.
 
+## 📊 Dashboard Interativo
+
+> **[🔗 Abrir visualização interativa](https://htmlpreview.github.io/?https://raw.githubusercontent.com/filippoalvim/queries-analytics/main/churn-dashboard.html)**
+>
+> Explore a curva de distribuição logarítmica, filtre por intervalo de dias e veja os indicadores de usuários e percentual acumulado em tempo real.
+
 ---
 
 ## 🧩 Contexto do Problema
