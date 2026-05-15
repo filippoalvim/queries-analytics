@@ -32,11 +32,11 @@ total_usuarios = data[-1]["acumulado"] if data else 0
 data_json = json.dumps(data)
 
 html = f"""<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Análise de Churn — Intervalo de Envio de NFs | VR</title>
+  <title>Churn Analysis — Receipt Submission Interval | VR</title>
   <script>{chartjs_code}</script>
   <script>{annotation_code}</script>
   <style>
@@ -247,52 +247,52 @@ html = f"""<!DOCTYPE html>
 <body>
 
 <div class="header">
-  <h1>Distribuição de <span>Intervalo de Envio</span> de NFs</h1>
-  <p>Análise comportamental de churn no produto de escaneamento de notas fiscais da VR, baseada na mediana de dias entre envios consecutivos por usuário.</p>
-  <span class="badge">97.378 usuários analisados · Dados sintéticos para portfólio</span>
+  <h1>Receipt <span>Submission Interval</span> Distribution</h1>
+  <p>Behavioral churn analysis for VR's receipt scanning product, based on the median gap between consecutive submissions per user.</p>
+  <span class="badge">97,378 users analyzed · Synthetic data for portfolio</span>
 </div>
 
 <div class="controls" style="max-width:960px">
   <label>
-    Filtrar intervalo de dias (eixo X):<br/>
-    <span style="font-size:0.78rem;color:var(--muted)">Arraste para explorar a distribuição em diferentes janelas de tempo</span>
+    Filter day interval (X axis):<br/>
+    <span style="font-size:0.78rem;color:var(--muted)">Drag to explore the distribution across different time windows</span>
   </label>
   <div class="slider-row">
     <span style="font-size:0.8rem;color:var(--muted)">0</span>
     <input type="range" id="sliderMax" min="1" max="90" value="30" step="1" oninput="onSlider(this.value)"/>
-    <span class="slider-val" id="sliderDisplay">30 dias</span>
+    <span class="slider-val" id="sliderDisplay">30 days</span>
   </div>
 </div>
 
 <div class="cards">
   <div class="card cyan">
-    <div class="card-label">Dia Selecionado</div>
+    <div class="card-label">Selected Day</div>
     <div class="card-value cyan" id="cardDia">—</div>
-    <div class="card-sub">Ponto de referência no eixo X</div>
+    <div class="card-sub">Reference point on the X axis</div>
   </div>
   <div class="card">
-    <div class="card-label">Usuários no Dia</div>
+    <div class="card-label">Users on Day</div>
     <div class="card-value accent" id="cardQtd">—</div>
-    <div class="card-sub">Mediana de intervalo = X dias</div>
+    <div class="card-sub">Median interval = X days</div>
   </div>
   <div class="card green">
-    <div class="card-label">Usuários Acumulados</div>
+    <div class="card-label">Cumulative Users</div>
     <div class="card-value green" id="cardAcum">—</div>
-    <div class="card-sub" id="cardAcumSub">até o dia selecionado</div>
+    <div class="card-sub" id="cardAcumSub">up to selected day</div>
   </div>
   <div class="card amber">
-    <div class="card-label">% Acumulado</div>
+    <div class="card-label">Cumulative %</div>
     <div class="card-value amber" id="cardPct">—</div>
-    <div class="card-sub" id="cardPctSub">da base total</div>
+    <div class="card-sub" id="cardPctSub">of total user base</div>
   </div>
 </div>
 
 <div class="chart-wrap">
-  <div class="chart-title"><strong>Curva de Distribuição Acumulada</strong> · Mediana de Dias entre Envios de NF</div>
+  <div class="chart-title"><strong>Cumulative Distribution Curve</strong> · Median Days Between Receipt Submissions</div>
   <div class="legend-row">
-    <div class="leg-item"><div class="leg-dot" style="background:#6366f1"></div>% Acumulado de Usuários (linha)</div>
-    <div class="leg-item"><div class="leg-dot" style="background:rgba(34,211,238,0.5)"></div>Qtd. Usuários no Dia (barras)</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#f59e0b;border-radius:50%"></div>Linha de Pareto (80%)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#6366f1"></div>Cumulative % of Users (line)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:rgba(34,211,238,0.5)"></div>Users on Day (bars)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f59e0b;border-radius:50%"></div>Pareto Line (80%)</div>
   </div>
   <canvas id="chartMain"></canvas>
 </div>
@@ -300,10 +300,10 @@ html = f"""<!DOCTYPE html>
 <div class="pareto-note">
   <span class="icon">📐</span>
   <span>
-    <strong>Princípio de Pareto aplicado:</strong> 80% dos usuários possuem mediana de intervalo de envio de <strong>até 15 dias</strong>.
-    O gráfico forma uma <strong>curva logarítmica</strong>: o incremento de usuários por dia adicional de intervalo decresce progressivamente,
-    revelando uma base concentrada em usuários de alta frequência.
-    <strong>40% dos usuários</strong> enviam notas fiscais com mediana de até 1 dia — ou seja, praticamente todos os dias.
+    <strong>Pareto principle applied:</strong> 80% of users have a median submission interval of <strong>up to 15 days</strong>.
+    The chart forms a <strong>logarithmic curve</strong>: the incremental gain of users per additional day of interval decreases progressively,
+    revealing a user base concentrated in highly frequent submitters.
+    <strong>40% of users</strong> have a median interval of up to 1 day — meaning they submit receipts practically every day.
   </span>
 </div>
 
@@ -318,7 +318,7 @@ function getDataUpTo(maxDia) {{
 
 function fmt(n) {{
   if (n === null || n === undefined) return '—';
-  return n.toLocaleString('pt-BR');
+  return n.toLocaleString('en-US');
 }}
 
 let chart;
@@ -341,7 +341,7 @@ function buildChart(maxDia) {{
       datasets: [
         {{
           type: 'line',
-          label: '% Acumulado',
+          label: 'Cumulative %',
           data: pcts,
           borderColor: '#6366f1',
           backgroundColor: 'rgba(99,102,241,0.08)',
@@ -356,7 +356,7 @@ function buildChart(maxDia) {{
         }},
         {{
           type: 'bar',
-          label: 'Usuários no Dia',
+          label: 'Users on Day',
           data: qtds,
           backgroundColor: 'rgba(34,211,238,0.3)',
           borderColor: 'rgba(34,211,238,0.6)',
@@ -391,11 +391,11 @@ function buildChart(maxDia) {{
           bodyColor: '#94a3b8',
           padding: 12,
           callbacks: {{
-            title: (items) => `Dia ${{items[0].label}}`,
+            title: (items) => `Day ${{items[0].label}}`,
             label: (item) => {{
-              if (item.dataset.label === '% Acumulado')
-                return ` ${{item.raw}}% acumulado`;
-              return ` ${{item.raw.toLocaleString('pt-BR')}} usuários`;
+              if (item.dataset.label === 'Cumulative %')
+                return ` ${{item.raw}}% cumulative`;
+              return ` ${{item.raw.toLocaleString('en-US')}} users`;
             }}
           }}
         }},
@@ -433,7 +433,7 @@ function buildChart(maxDia) {{
           }},
           title: {{
             display: true,
-            text: 'Mediana de Dias entre Envios de NF',
+            text: 'Median Days Between Receipt Submissions',
             color: '#64748b',
             font: {{ size: 11 }}
           }}
@@ -449,7 +449,7 @@ function buildChart(maxDia) {{
           }},
           title: {{
             display: true,
-            text: '% Acumulado de Usuários',
+            text: 'Cumulative % of Users',
             color: '#6366f1',
             font: {{ size: 11 }}
           }}
@@ -464,7 +464,7 @@ function buildChart(maxDia) {{
           }},
           title: {{
             display: true,
-            text: 'Usuários no Dia',
+            text: 'Users on Day',
             color: 'rgba(34,211,238,0.7)',
             font: {{ size: 11 }}
           }}
@@ -475,18 +475,18 @@ function buildChart(maxDia) {{
 }}
 
 function updateCards(d) {{
-  document.getElementById('cardDia').textContent = d.dia + (d.dia === 1 ? ' dia' : ' dias');
+  document.getElementById('cardDia').textContent = d.dia + (d.dia === 1 ? ' day' : ' days');
   document.getElementById('cardQtd').textContent = fmt(d.qtd);
   document.getElementById('cardAcum').textContent = fmt(d.acumulado);
-  document.getElementById('cardAcumSub').textContent = `até o dia ${{d.dia}}`;
+  document.getElementById('cardAcumSub').textContent = `up to day ${{d.dia}}`;
   document.getElementById('cardPct').textContent = d.pct_acumulado + '%';
   document.getElementById('cardPctSub').textContent = d.pct_acumulado >= 80
-    ? '✅ Acima do Pareto (80%)'
-    : `faltam ${{(80 - d.pct_acumulado).toFixed(2)}}pp para o Pareto`;
+    ? '✅ Above Pareto threshold (80%)'
+    : `${{(80 - d.pct_acumulado).toFixed(2)}}pp below Pareto`;
 }}
 
 function onSlider(val) {{
-  document.getElementById('sliderDisplay').textContent = val + ' dias';
+  document.getElementById('sliderDisplay').textContent = val + ' days';
   buildChart(parseInt(val));
   const slice = getDataUpTo(parseInt(val));
   if (slice.length) updateCards(slice[slice.length - 1]);
