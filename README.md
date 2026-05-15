@@ -4,7 +4,7 @@ Este repositório documenta a análise de **churn comportamental de usuários** 
 
 ## 📊 Dashboard Interativo
 
-> **[🔗 Abrir visualização interativa](https://htmlpreview.github.io/?https://raw.githubusercontent.com/filippoalvim/queries-analytics/main/churn-dashboard.html)**
+> **[🔗 Abrir visualização interativa](https://htmlpreview.github.io/?https://raw.githubusercontent.com/filippoalvim/queries-analytics/main/assets/churn-dashboard.html)**
 >
 > Explore a curva de distribuição logarítmica, filtre por intervalo de dias e veja os indicadores de usuários e percentual acumulado em tempo real.
 

@@ -499,7 +499,7 @@ if (initial.length) updateCards(initial[initial.length - 1]);
 </body>
 </html>"""
 
-with open(r'C:\Cupolillo\churn-project\queries-analytics\churn-dashboard.html', 'w', encoding='utf-8') as f:
+with open(r'C:\Cupolillo\churn-project\queries-analytics\assets\churn-dashboard.html', 'w', encoding='utf-8') as f:
     f.write(html)
 
 print("Dashboard gerado com sucesso!")
